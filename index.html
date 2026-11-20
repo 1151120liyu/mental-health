@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>第09章 個別心理治療 測驗APP</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --correct: #16a34a;
+      --wrong: #dc2626;
+      --border: #e5e7eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+    .header {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+      margin-bottom: 20px;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.8rem; }
+    .subtitle { color: var(--muted); margin: 0; }
+    .controls, .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+      margin-bottom: 16px;
+    }
+    .unit-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .unit-btn { background: #e8efff; color: #1e3a8a; }
+    .unit-btn.active, .primary { background: var(--primary); color: #fff; }
+    .unit-btn:hover, .primary:hover { background: var(--primary-dark); color: #fff; }
+    .secondary { background: #eef2f7; color: #374151; }
+    .secondary:hover { background: #e5e7eb; }
+    .meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--muted); margin-bottom: 12px; }
+    .question-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 12px; }
+    .options { display: grid; gap: 10px; }
+    .option {
+      text-align: left;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 14px;
+    }
+    .option:hover { border-color: #93c5fd; background: #eff6ff; }
+    .option.correct { border-color: #86efac; background: #f0fdf4; color: #166534; }
+    .option.wrong { border-color: #fca5a5; background: #fef2f2; color: #991b1b; }
+    .option:disabled { cursor: default; }
+    .feedback {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      display: none;
+    }
+    .feedback.show { display: block; }
+    .feedback.correct { background: #f0fdf4; border: 1px solid #86efac; }
+    .feedback.wrong { background: #fef2f2; border: 1px solid #fca5a5; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    .progress-bar {
+      height: 10px; background: #e5e7eb; border-radius: 999px; overflow: hidden; margin-top: 10px;
+    }
+    .progress-fill { height: 100%; width: 0%; background: var(--primary); transition: width 0.3s; }
+    .result { text-align: center; }
+    .score { font-size: 2rem; font-weight: 800; color: var(--primary); margin: 8px 0; }
+    .review-item { text-align: left; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.85rem; margin-left: 6px; }
+    .tag.ok { background: #dcfce7; color: #166534; }
+    .tag.bad { background: #fee2e2; color: #991b1b; }
+    .hidden { display: none; }
+    @media (max-width: 640px) {
+      h1 { font-size: 1.45rem; }
+      .container { padding: 16px 12px 32px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>第09章 個別心理治療 測驗APP</h1>
+      <p class="subtitle">依簡報單元練習：每單元 3 題，作答後立即顯示解析。</p>
+    </div>
+
+    <div class="controls">
+      <div><strong>選擇單元：</strong></div>
+      <div class="unit-buttons" id="unitButtons"></div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+    <div id="quizCard" class="card"></div>
+    <div id="resultCard" class="card hidden"></div>
+  </div>
+
+  <script>
+    const quizData = [
+      {
+        id: "unit1",
+        title: "第一節：個別心理治療的基本概念",
+        questions: [
+          {
+            q: "下列何者最能說明個別心理治療中「治療關係」的重要性？",
+            options: [
+              "治療關係只是形式，治療成效僅取決於治療技巧的複雜度",
+              "治療者與個案需建立信任的專業關係，作為促進個案表達與改變的基礎",
+              "治療者應與個案發展私人情誼，以增加個案依賴感",
+              "只要個案願意付費，關係品質並不重要"
+            ],
+            answer: 1,
+            explanation: "個別心理治療強調在專業的人際關係中，透過信任、支持與理解，協助個案覺察問題、表達感受並促進改變。"
+          },
+          {
+            q: "依簡報對治療理論取向的分類，下列敘述何者正確？",
+            options: [
+              "心理動力取向主張行為完全由當下環境刺激決定，不受過去經驗影響",
+              "認知行為取向重視個案對事件的認知與想法，並透過學習與訓練調整不適應的行為與思考",
+              "人本取向認為人缺乏自我成長潛能，必須由治療者主導價值判斷",
+              "所有取向皆排斥使用任何理論架構，僅依治療者直覺進行"
+            ],
+            answer: 1,
+            explanation: "心理動力取向重視早期經驗與內在衝突；認知行為取向關注非理性想法與行為學習；人本取向強調主觀經驗與成長潛能。"
+          },
+          {
+            q: "關於個別心理治療的特性，下列何者正確？",
+            options: [
+              "治療者不需專業訓練，只要有熱忱即可",
+              "治療目標在協助處理個案的困擾與促進適應，過程需治療者與個案共同參與",
+              "治療過程中個案應完全被動，由治療者單方面指導",
+              "治療僅能在症狀完全消失後才能開始"
+            ],
+            answer: 1,
+            explanation: "治療者需具備專業訓練，治療在共同目標下進行，且需要治療者與個案共同參與，以促進個案適應與改變。"
+          }
+        ]
+      },
+      {
+        id: "unit2",
+        title: "第二節：個別心理治療的方法",
+        questions: [
+          {
+            q: "依 Freud 的意識層次概念，下列何者最符合「潛意識（unconscious）」的描述？",
+            options: [
+              "個人當下清楚覺察到的想法與感受",
+              "稍加注意即可回想起的記憶與知識",
+              "不易被覺察、卻可能影響行為與情緒的衝動、欲望與被壓抑的經驗",
+              "僅包含個人可自由控制的理性思考"
+            ],
+            answer: 2,
+            explanation: "潛意識儲存不易進入覺察但持續影響個人想法、情緒與行為的內容，與意識、前意識不同。"
+          },
+          {
+            q: "在精神分析治療中，當個案無意識地阻礙治療進展（如遲到、忘記約談、迴避某些話題），此現象較符合下列何者？",
+            options: [
+              "自由聯想",
+              "阻抗（resistance）",
+              "領悟（insight）",
+              "同理心（empathy）"
+            ],
+            answer: 1,
+            explanation: "阻抗是個案為避免面對焦慮或痛苦的潛意識內容而出現的防衛性反應，治療者需覺察並協助理解。"
+          },
+          {
+            q: "關於個人中心治療（Person-Centered Therapy）的核心態度，下列何者最正確？",
+            options: [
+              "治療者以權威角色指導個案應有的正確價值觀",
+              "治療者提供真誠一致、無條件正向關懷與同理理解，促進個案自我探索",
+              "治療者應保持冷漠中立，避免表達任何理解",
+              "治療重點在於直接糾正個案行為，而非理解其主觀經驗"
+            ],
+            answer: 1,
+            explanation: "個人中心治療強調真誠一致、同理與無條件正向關懷，協助個案在安全關係中覺察自我與促進成長。"
+          }
+        ]
+      },
+      {
+        id: "unit4",
+        title: "第四節：個別心理治療的原則與護理過程及評值",
+        questions: [
+          {
+            q: "進行個別心理治療時，下列原則何者較適當？",
+            options: [
+              "治療者可依個人喜好隨意更改治療設定與界線",
+              "應建立清楚且一致的治療架構與專業界線，以維持治療的安全性與穩定性",
+              "為加速成效，應鼓勵個案完全依賴治療者做所有決定",
+              "治療過程不需尊重個案隱私，只要有助治療即可公開討論"
+            ],
+            answer: 1,
+            explanation: "明確的治療架構、專業界線與倫理原則（如保密）有助於提供安全且穩定的治療環境。"
+          },
+          {
+            q: "在護理過程中協助接受個別心理治療的個案，下列作法何者較適切？",
+            options: [
+              "代替個案回答治療者的問題，以節省時間",
+              "協助個案了解治療目的與過程，觀察並支持其參與治療及表達感受",
+              "評價個案在治療中的情緒表現，要求其保持理性",
+              "僅關注生理症狀，忽略個案的心理需求與反應"
+            ],
+            answer: 1,
+            explanation: "護理人員可協助個案認識治療、支持其參與，並觀察情緒行為變化與提供心理支持。"
+          },
+          {
+            q: "評估個別心理治療成效時，下列何者較能反映正向改變？",
+            options: [
+              "個案仍完全無法覺察自身困擾，但表示治療次數已足夠",
+              "個案能較清楚覺察自己的想法與情緒，並嘗試以較適應性的方式面對問題",
+              "個案將所有責任歸咎於他人，拒絕檢視自身行為",
+              "個案在人際互動中衝突增加且無法運用所學"
+            ],
+            answer: 1,
+            explanation: "成效可由自我覺察提升、認知與情緒行為調適改善，以及能將所學應用於日常生活來評估。"
+          }
+        ]
+      }
+    ];
+
+    let currentUnitIndex = 0;
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let answers = [];
+
+    const unitButtonsEl = document.getElementById('unitButtons');
+    const quizCardEl = document.getElementById('quizCard');
+    const resultCardEl = document.getElementById('resultCard');
+    const progressFillEl = document.getElementById('progressFill');
+
+    function init() {
+      unitButtonsEl.innerHTML = '';
+      quizData.forEach((unit, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'unit-btn' + (idx === 0 ? ' active' : '');
+        btn.textContent = unit.title;
+        btn.onclick = () => selectUnit(idx);
+        unitButtonsEl.appendChild(btn);
+      });
+      selectUnit(0);
+    }
+
+    function selectUnit(idx) {
+      currentUnitIndex = idx;
+      currentQuestionIndex = 0;
+      score = 0;
+      answers = [];
+      document.querySelectorAll('.unit-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+      resultCardEl.classList.add('hidden');
+      quizCardEl.classList.remove('hidden');
+      renderQuestion();
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const unit = quizData[currentUnitIndex];
+      const pct = (currentQuestionIndex / unit.questions.length) * 100;
+      progressFillEl.style.width = pct + '%';
+    }
+
+    function renderQuestion() {
+      const unit = quizData[currentUnitIndex];
+      const q = unit.questions[currentQuestionIndex];
+      const letters = ['A', 'B', 'C', 'D'];
+
+      quizCardEl.innerHTML = `
+        <div class="meta">
+          <div><strong>${unit.title}</strong></div>
+          <div>第 ${currentQuestionIndex + 1} / ${unit.questions.length} 題</div>
+        </div>
+        <div class="question-title">${q.q}</div>
+        <div class="options" id="options"></div>
+        <div class="feedback" id="feedback"></div>
+        <div class="actions">
+          <button class="secondary" id="prevBtn" ${currentQuestionIndex === 0 ? 'disabled' : ''}>上一題</button>
+          <button class="primary" id="nextBtn" disabled>${currentQuestionIndex === unit.questions.length - 1 ? '查看結果' : '下一題'}</button>
+          <button class="secondary" id="restartBtn">重新作答本單元</button>
+        </div>
+      `;
+
+      const optionsEl = document.getElementById('options');
+      q.options.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'option';
+        btn.innerHTML = `<strong>${letters[i]}.</strong> ${opt}`;
+        btn.onclick = () => chooseAnswer(i);
+        optionsEl.appendChild(btn);
+      });
+
+      document.getElementById('prevBtn').onclick = () => {
+        if (currentQuestionIndex > 0) {
+          currentQuestionIndex--;
+          renderQuestion();
+          updateProgress();
+        }
+      };
+      document.getElementById('nextBtn').onclick = () => {
+        if (currentQuestionIndex < unit.questions.length - 1) {
+          currentQuestionIndex++;
+          renderQuestion();
+          updateProgress();
+        } else {
+          showResult();
+        }
+      };
+      document.getElementById('restartBtn').onclick = () => selectUnit(currentUnitIndex);
+
+      // restore if already answered
+      const prev = answers[currentQuestionIndex];
+      if (prev !== undefined) {
+        reveal(prev, false);
+      }
+    }
+
+    function chooseAnswer(selected) {
+      if (answers[currentQuestionIndex] !== undefined) return;
+      answers[currentQuestionIndex] = selected;
+      if (selected === quizData[currentUnitIndex].questions[currentQuestionIndex].answer) score++;
+      reveal(selected, true);
+    }
+
+    function reveal(selected, justAnswered) {
+      const unit = quizData[currentUnitIndex];
+      const q = unit.questions[currentQuestionIndex];
+      const optionBtns = document.querySelectorAll('.option');
+      optionBtns.forEach((btn, i) => {
+        btn.disabled = true;
+        if (i === q.answer) btn.classList.add('correct');
+        if (i === selected && selected !== q.answer) btn.classList.add('wrong');
+      });
+
+      const feedback = document.getElementById('feedback');
+      const isCorrect = selected === q.answer;
+      feedback.className = 'feedback show ' + (isCorrect ? 'correct' : 'wrong');
+      feedback.innerHTML = `<strong>${isCorrect ? '答對了！' : '答錯了。'}</strong><br>正確答案：${['A','B','C','D'][q.answer]}<br>解析：${q.explanation}`;
+      document.getElementById('nextBtn').disabled = false;
+      if (justAnswered) updateProgress();
+    }
+
+    function showResult() {
+      const unit = quizData[currentUnitIndex];
+      progressFillEl.style.width = '100%';
+      quizCardEl.classList.add('hidden');
+      resultCardEl.classList.remove('hidden');
+
+      let reviewHtml = '';
+      unit.questions.forEach((q, i) => {
+        const user = answers[i];
+        const ok = user === q.answer;
+        reviewHtml += `
+          <div class="review-item">
+            <div><strong>${i + 1}. ${q.q}</strong> <span class="tag ${ok ? 'ok' : 'bad'}">${ok ? '正確' : '錯誤'}</span></div>
+            <div>你的答案：${user !== undefined ? ['A','B','C','D'][user] : '未作答'}　正確答案：${['A','B','C','D'][q.answer]}</div>
+            <div style="color:#4b5563;">解析：${q.explanation}</div>
+          </div>
+        `;
+      });
+
+      resultCardEl.innerHTML = `
+        <div class="result">
+          <h2>${unit.title} - 測驗結果</h2>
+          <div class="score">${score} / ${unit.questions.length}</div>
+          <p>${score === unit.questions.length ? '太棒了，全部答對！' : score >= 2 ? '表現不錯，再複習一下解析會更熟練。' : '建議再複習本單元重點後重做一次。'}</p>
+          <div class="actions" style="justify-content:center;">
+            <button class="primary" id="retryBtn">重新測驗本單元</button>
+          </div>
+        </div>
+        <div>${reviewHtml}</div>
+      `;
+      document.getElementById('retryBtn').onclick = () => selectUnit(currentUnitIndex);
+    }
+
+    init();
+  </script>
+</body>
+</html>
